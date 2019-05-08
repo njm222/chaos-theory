@@ -10,8 +10,10 @@
 </head>
 <body>
 
+<script src="js/dat.gui.min.js"></script>
 <script src="js/three.js"></script>
 <script src="js/OrbitControls.js"></script>
+
 <script type="x-shader/x-vertex" id="vertexshader">
         attribute float size;
         varying vec3 vColor;
@@ -33,143 +35,192 @@
 </script>
 
 <script>
-    let scene = new THREE.Scene();
-    let camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 5, 3500 );
-    let renderer = new THREE.WebGLRenderer();
-    let controls = new THREE.OrbitControls(camera);
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    document.body.appendChild( renderer.domElement );
-
-    createParticleSystem();
-
-    let positions = scene.children[0].geometry.attributes.position.array;
-
-    let oldPositions = [...positions];
-
-    camera.position.set(-62, 40, 52);
-    camera.rotation.set(-1.3, -0.92, -1.2);
 
     let time_elapsed = -1;
+    let time_end = 1;
+    let time_reset = 0.1;
+    let speed = 0.1;
+    let stopSpeed = false;
+
+    let a = 10.0, b = 28.0, c = 8.0 / 3.0;
+
+    let setup = function() {
+
+        /*this.startTime = -1;*/
+        this.endTime = time_end;
+        this.resetTime = time_reset;
+        this.particleSpeed = speed;
+        this.stopSpeed = stopSpeed;
+        this.a_value = 10;
+        this.b_value = b;
+        this.c_value = c;
+
+        let scene = new THREE.Scene();
+        let camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 5, 3500 );
+        let renderer = new THREE.WebGLRenderer();
+        let controls = new THREE.OrbitControls(camera, renderer.domElement);
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        document.body.appendChild( renderer.domElement );
+
+        createParticleSystem();
+
+        let positions = scene.children[0].geometry.attributes.position.array;
+
+        let oldPositions = [...positions];
+
+        camera.position.set(-62, 40, 52);
+        camera.rotation.set(-1.3, -0.92, -1.2);
 
 
-    let animate = function () {
-        requestAnimationFrame( animate );
-        camera.updateProjectionMatrix();
-        controls.update();
+        let animate = function () {
+            requestAnimationFrame( animate );
+            camera.updateProjectionMatrix();
+            controls.update();
+
+            if(!stopSpeed) {
+                time_elapsed += speed;
+            }
+            if(time_elapsed >= time_end) {
+                console.log(time_elapsed);
+                time_elapsed = time_reset;
+
+            }
+
+            //scene.rotation.y = Date.now() / 2000;
+            experiment1();
 
 
-        time_elapsed =  time_elapsed + 0.1;
-        if(time_elapsed >= 1) {
-            console.log(time_elapsed);
-            time_elapsed = -.1;
+            renderer.render( scene, camera );
+        };
 
+        animate();
+
+
+        function experiment1() {
+            positions = scene.children[0].geometry.attributes.position.array;
+
+            let a = 0;
+
+            for(let i = positions.length-3; i < positions.length; i++) {
+                positions[i] = oldPositions[i] + (oldPositions[a++] - oldPositions[i])*time_elapsed;
+            }
+
+            for (let i = 0; i < positions.length-3; i++) {
+                positions[i] = oldPositions[i] + (oldPositions[i+3] - oldPositions[i])*time_elapsed;
+            }
+
+
+            scene.children[0].geometry.attributes.position.needsUpdate = true;
         }
 
-        //scene.rotation.y = Date.now() / 2000;
-        experiment1();
+        /** Particle System Setup */
+        function createParticleSystem() {
+            // create the particle variables
+            let num_Particles = 1000,
+                particlesGeo = new THREE.BufferGeometry(),
+                /*pMaterial = new THREE.ShaderMaterial( {
+                    /!*uniforms: uniforms,*!/
+                    vertexShader: document.getElementById( 'vertexshader' ).textContent,
+                    fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
+                    blending: THREE.AdditiveBlending,
+                    depthTest: false,
+                    transparent: true,
+                    vertexColors: true
+                } ),*/
+                pMaterial = new THREE.PointsMaterial( { size: 20, vertexColors: THREE.VertexColors, depthTest: false, sizeAttenuation: false } ),
+                color = new THREE.Color();
 
+            let positions = [];
+            let colors = [];
+            let sizes = [];
 
-        renderer.render( scene, camera );
+            let x0 = 0.1,
+                y0 = 0,
+                z0 = 0;
+            let x1, y1, z1, h = 0.01;
+
+            // now create the individual particles
+            for (let p = 0; p < num_Particles; p++) {
+
+                x1 = x0 + h * a * (y0 - x0);
+                y1 = y0 + h * (x0 * (b - z0) - y0);
+                z1 = z0 + h * (x0 * y0 - c * z0);
+                x0 = x1;
+                y0 = y1;
+                z0 = z1;
+
+                color.setHSL( p / num_Particles, 1.0, 0.5 );
+                colors.push( color.r, color.g, color.b );
+
+                positions.push( Math.floor(x0));
+                positions.push(Math.floor(y0));
+                positions.push(Math.floor(z0));
+                sizes.push( 20 );
+
+                // add it to the geometry
+            }
+
+            particlesGeo.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
+            particlesGeo.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+            particlesGeo.addAttribute( 'size', new THREE.Float32BufferAttribute( sizes, 1 ).setDynamic( true ) );
+
+            //particlesGeo.computeBoundingSphere();
+
+            // create the particle system
+            let particleSystem = new THREE.Points(
+                particlesGeo,
+                pMaterial);
+
+            particleSystem.sortParticles = true;
+
+            particleSystem.rotation.x = -Math.PI/10;
+            particleSystem.rotation.y = 0;
+
+            // add it to the scene
+            scene.add(particleSystem);
+        }
+        /** Variable width/height canvas Listener function */
+        window.addEventListener('resize', re => {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize(width, height);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        });
     };
 
-    animate();
-
-
-    function experiment1() {
-        positions = scene.children[0].geometry.attributes.position.array;
-
-        let a = 0;
-
-        for(let i = positions.length-3; i < positions.length; i++) {
-            positions[i] = oldPositions[i] + (oldPositions[a++] - oldPositions[i])*time_elapsed;
-        }
-
-        for (let i = 0; i < positions.length-3; i++) {
-            positions[i] = oldPositions[i] + (oldPositions[i+3] - oldPositions[i])*time_elapsed;
-        }
-
-
-        scene.children[0].geometry.attributes.position.needsUpdate = true;
-    }
-
-    /** Particle System Setup */
-    function createParticleSystem() {
-        // create the particle variables
-        let num_Particles = 1000,
-            particlesGeo = new THREE.BufferGeometry(),
-            /*pMaterial = new THREE.ShaderMaterial( {
-                /!*uniforms: uniforms,*!/
-                vertexShader: document.getElementById( 'vertexshader' ).textContent,
-                fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
-                blending: THREE.AdditiveBlending,
-                depthTest: false,
-                transparent: true,
-                vertexColors: true
-            } ),*/
-            pMaterial = new THREE.PointsMaterial( { size: 20, vertexColors: THREE.VertexColors, depthTest: false, sizeAttenuation: false } ),
-            color = new THREE.Color();
-
-        let positions = [];
-        let colors = [];
-        let sizes = [];
-
-        let x0 = 0.1,
-            y0 = 0,
-            z0 = 0;
-        let x1, y1, z1, h = 0.01, a = 10.0, b = 28.0, c = 8.0 / 3.0;
-
-        // now create the individual particles
-        for (let p = 0; p < num_Particles; p++) {
-
-            x1 = x0 + h * a * (y0 - x0);
-            y1 = y0 + h * (x0 * (b - z0) - y0);
-            z1 = z0 + h * (x0 * y0 - c * z0);
-            x0 = x1;
-            y0 = y1;
-            z0 = z1;
-
-            color.setHSL( p / num_Particles, 1.0, 0.5 );
-            colors.push( color.r, color.g, color.b );
-
-            positions.push( Math.floor(x0));
-            positions.push(Math.floor(y0));
-            positions.push(Math.floor(z0));
-            sizes.push( 20 );
-
-            // add it to the geometry
-        }
-
-        particlesGeo.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
-        particlesGeo.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
-        particlesGeo.addAttribute( 'size', new THREE.Float32BufferAttribute( sizes, 1 ).setDynamic( true ) );
-
-        //particlesGeo.computeBoundingSphere();
-
-// create the particle system
-        let particleSystem = new THREE.Points(
-            particlesGeo,
-            pMaterial);
-
-        particleSystem.sortParticles = true;
-
-        particleSystem.rotation.x = -Math.PI/10;
-        particleSystem.rotation.y = 0;
-
-// add it to the scene
-        scene.add(particleSystem);
-    }
-    /** Variable width/height canvas Listener function */
-    window.addEventListener('resize', re => {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-
-        renderer.setPixelRatio( window.devicePixelRatio );
-        renderer.setSize(width, height);
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-    });
+    window.onload = function() {
+        let text = new setup();
+        let gui = new dat.GUI();
+        /*gui.add(text, 'startTime', -5, 1).listen().onChange(value => {
+            time_elapsed = value;
+        });*/
+        gui.add(text, 'resetTime', -20, 20).listen().onChange(value => {
+            time_reset = value;
+        });
+        gui.add(text, 'endTime', -20, 20).listen().onChange(value => {
+            time_end = value;
+        });
+        gui.add(text, 'particleSpeed', -.05, .5).step(.001).listen().onChange(value => {
+            speed = value;
+        });
+        gui.add(text, 'stopSpeed').listen().onChange(value => {
+            stopSpeed = value;
+        });
+        gui.add(text, 'a_value').listen().onChange(value => {
+            a = value;
+        });
+        gui.add(text, 'b_value').listen().onChange(value => {
+            b = value;
+        });
+        gui.add(text, 'c_value').listen().onChange(value => {
+            c = value;
+        });
+    };
 </script>
 </body>
 </html>
