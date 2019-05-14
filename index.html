@@ -41,12 +41,14 @@
     let time_reset = 0.1;
     let speed = 0.1;
     let stopSpeed = false;
-    let waitRender = true;
+    let numParticles = 1000;
 
     let a = 10.0, b = 28.0, c = 8.0 / 3.0;
+    let x0start = 1, y0start = 0, z0start = 0;
 
     let scene = new THREE.Scene();
     let camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 5, 3500 );
+    /*camera = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 1, 1000 );*/
     let renderer = new THREE.WebGLRenderer();
     renderer.setSize( window.innerWidth, window.innerHeight );
     renderer.setPixelRatio( window.devicePixelRatio );
@@ -67,19 +69,13 @@
 
         time_elapsed += speed;
         if(time_elapsed >= time_end) {
-            console.log(time_elapsed);
             time_elapsed = time_reset;
 
         }
 
-        //scene.rotation.y = Date.now() / 2000;
         if(!stopSpeed) {
             experiment1();
         }
-        /*if(waitRender === true) {
-            experiment1();
-        }*/
-
 
         renderer.render( scene, camera );
     };
@@ -90,7 +86,7 @@
         console.log(scene.children);
 
         // create the particle variables
-        let num_Particles = 2000,
+        let num_Particles = numParticles,
             particlesGeo = new THREE.BufferGeometry(),
             /*pMaterial = new THREE.ShaderMaterial( {
                 /!*uniforms: uniforms,*!/
@@ -108,10 +104,10 @@
         let colors = [];
         let sizes = [];
 
-        let x0 = 1,
-            y0 = 0,
-            z0 = 0;
         let x1, y1, z1, h = 0.01;
+        let x0 = x0start,
+            y0 = y0start,
+            z0 = z0start;
 
         // now create the individual particles
         for (let p = 0; p < num_Particles; p++) {
@@ -134,13 +130,10 @@
             // add it to the geometry
         }
 
-        console.log("A changed to " + a);
-
         particlesGeo.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ).setDynamic( true ) );
         particlesGeo.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
         particlesGeo.addAttribute( 'size', new THREE.Float32BufferAttribute( sizes, 1 ).setDynamic( true ) );
 
-        //particlesGeo.computeBoundingSphere();
 
         // create the particle system
         let particleSystem = new THREE.Points(
@@ -182,12 +175,14 @@
 
         /*this.startTime = -1;*/
         this.endTime = time_end;
-        this.resetTime = time_reset;
         this.particleSpeed = speed;
         this.stopSpeed = stopSpeed;
         this.a_value = a;
         this.b_value = b;
         this.c_value = c;
+        this.x_start = x0start;
+        this.y_start = y0start;
+        this.z_start = z0start;
 
         createParticleSystem();
 
@@ -195,8 +190,7 @@
 
         oldPositions = [...positions];
 
-        camera.position.set(-62, 40, 52);
-        camera.rotation.set(-1.3, -0.92, -1.2);
+        camera.position.set(-40, -2, 40);
 
         animate();
 
@@ -213,17 +207,18 @@
     };
 
     function updateParticleSystem() {
-        waitRender = false;
         // create the particle variables
-        let num_Particles = 2000,
+        let num_Particles = numParticles,
             particlesGeo = scene.children[0].geometry;
 
         let positions = particlesGeo.attributes.position.array;
 
-        let x0 = 1,
-            y0 = 0,
-            z0 = 0;
+
+
         let x1, y1, z1, h = 0.01;
+        let x0 = x0start,
+            y0 = y0start,
+            z0 = z0start;
 
         let posCounter = 0;
         // now create the individual particles
@@ -243,10 +238,6 @@
         }
 
         scene.children[0].geometry.attributes.position.needsUpdate = true;
-
-        console.log("A changed to " + a);
-
-        waitRender = true;
     }
 
     window.onload = function() {
@@ -255,33 +246,47 @@
         /*gui.add(text, 'startTime', -5, 1).listen().onChange(value => {
             time_elapsed = value;
         });*/
-        gui.add(text, 'resetTime', -20, 20).listen().onChange(value => {
-            time_reset = value;
-        });
-        gui.add(text, 'endTime', -20, 20).listen().onChange(value => {
-            time_end = value;
-        });
-        gui.add(text, 'particleSpeed', -.05, .5).step(.001).listen().onChange(value => {
+        gui.add(text, 'particleSpeed', -.05, .5).step(.001).onChange(value => {
             speed = value;
         });
-        gui.add(text, 'stopSpeed').listen().onChange(value => {
+        gui.add(text, 'stopSpeed').onChange(value => {
             stopSpeed = value;
         });
-        gui.add(text, 'a_value').onChange(value => {
+        let lorenzValues = gui.addFolder('Lorenz Values');
+        lorenzValues.add(text, 'a_value', 0, 50).onChange(value => {
             a = value;
 
             updateParticleSystem();
             positions = scene.children[0].geometry.attributes.position.array;
             oldPositions = [...positions];
         });
-        gui.add(text, 'b_value').onChange(value => {
+        lorenzValues.add(text, 'b_value', 0, 50).onChange(value => {
             b = value;
             updateParticleSystem();
             positions = scene.children[0].geometry.attributes.position.array;
             oldPositions = [...positions];
         });
-        gui.add(text, 'c_value').onChange(value => {
+        lorenzValues.add(text, 'c_value', 0, 25).onChange(value => {
             c = value;
+            updateParticleSystem();
+            positions = scene.children[0].geometry.attributes.position.array;
+            oldPositions = [...positions];
+        });
+        let xyzStart = gui.addFolder('x,y,z start');
+        xyzStart.add(text, 'x_start', -100, 100).step(1).onChange(value => {
+            x0start = value;
+            updateParticleSystem();
+            positions = scene.children[0].geometry.attributes.position.array;
+            oldPositions = [...positions];
+        });
+        xyzStart.add(text, 'y_start', -100, 100).step(1).onChange(value => {
+            y0start = value;
+            updateParticleSystem();
+            positions = scene.children[0].geometry.attributes.position.array;
+            oldPositions = [...positions];
+        });
+        xyzStart.add(text, 'z_start', -100, 1000).step(1).onChange(value => {
+            z0start = value;
             updateParticleSystem();
             positions = scene.children[0].geometry.attributes.position.array;
             oldPositions = [...positions];
