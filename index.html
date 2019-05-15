@@ -14,23 +14,81 @@
 <script src="js/three.js"></script>
 <script src="js/OrbitControls.js"></script>
 
-<script type="x-shader/x-vertex" id="vertexshader">
-        attribute float size;
-        varying vec3 vColor;
-        void main() {
-            vColor = color;
-            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-            gl_PointSize = size * ( 300.0 / -mvPosition.z );
-            gl_Position = projectionMatrix * mvPosition;
-        }
+<script type = 'x-shader/x-vertex' id = 'vertexShader'>
+    uniform float screenWidth;
+    uniform float screenHeight;
+    uniform float time;
+    attribute float random;
+
+    void main() {
+    float myFloat = 100.0;
+    float timeLarge = time * 100.0;
+    vec3 newPosition = vec3(
+
+        position.x,
+        position.y - inversesqrt(timeLarge -
+        (random*2000.0)) * 700.0 +
+        (inversesqrt(time) * 65.0) +
+        (inversesqrt(time) * 10.0),
+        position.z
+
+    );
+    gl_PointSize = 5.8;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+    }
 </script>
 
-<script type="x-shader/x-fragment" id="fragmentshader">
-    uniform sampler2D texture;
-    varying vec3 vColor;
+<script type = 'x-shader-x-fragment' id = 'fragmentShader'>
+    vec3 rgb2hsb( in vec3 c ){
+        vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+        vec4 p = mix(vec4(c.bg, K.wz),
+            vec4(c.gb, K.xy),
+            step(c.b, c.g));
+        vec4 q = mix(vec4(p.xyw, c.r),
+            vec4(c.r, p.yzx),
+            step(p.x, c.r));
+        float d = q.x - min(q.w, q.y);
+        float e = 1.0e-10;
+        return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)),
+            d / (q.x + e),
+            q.x);
+    }
+
+    vec3 hsb2rgb( in vec3 c ){
+        vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),
+            6.0)-3.0)-1.0,
+            0.0,
+            1.0 );
+        rgb = rgb*rgb*(3.0-2.0*rgb);
+        return c.z * mix(vec3(1.0), rgb, c.y);
+    }
+
+    vec3 hsb3rgb( in vec3 c ){
+    vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),
+                             6.0)-3.0)-1.0,
+                     0.0,
+                     1.0 );
+    rgb = rgb*rgb*(3.0-2.0*rgb);
+    return c.z * mix( vec3(1.0), rgb, c.y);
+}
+
+    uniform float screenWidth;
+    uniform float screenHeight;
+
     void main() {
-        gl_FragColor = vec4( vColor, 1.0 );
-        gl_FragColor = gl_FragColor * texture2D( texture, gl_PointCoord );
+    float depth = gl_FragCoord.z / gl_FragCoord.w;
+
+    vec2 screen = vec2(screenWidth, screenHeight);
+    vec2 st = gl_FragCoord.xy / screen.xy;
+    vec3 color = vec3(0.0);
+
+    vec2 toCenter = vec2(1)-st;
+    float angle = atan(toCenter.y,toCenter.x);
+    float radius = length(toCenter)*2.0;
+
+    color = hsb3rgb(vec3((angle/6.28318530718)+0.5,radius,1.0));
+
+    gl_FragColor = vec4(color, 1.0);
     }
 </script>
 
@@ -85,19 +143,26 @@
 
         console.log(scene.children);
 
+        const uniforms = {
+            fogColor: { type: "c", value: scene.fog.color },
+            fogNear: { type: "f", value: scene.fog.near },
+            fogFar: { type: "f", value: scene.fog.far },
+            time: {	type: "f", value: 1	},
+            screenWidth: { type: "f", value: window.innerWidth},
+            screenHeight: {type: "f", value: window.innerHeight},
+            fog: {value: true}
+        };
+
         // create the particle variables
         let num_Particles = numParticles,
             particlesGeo = new THREE.BufferGeometry(),
-            /*pMaterial = new THREE.ShaderMaterial( {
-                /!*uniforms: uniforms,*!/
-                vertexShader: document.getElementById( 'vertexshader' ).textContent,
-                fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
-                blending: THREE.AdditiveBlending,
-                depthTest: false,
-                transparent: true,
-                vertexColors: true
-            } ),*/
-            pMaterial = new THREE.PointsMaterial( { size: 20, vertexColors: THREE.VertexColors, depthTest: false, sizeAttenuation: false } ),
+            pMaterial = new THREE.ShaderMaterial( {
+                uniforms: uniforms,
+                fog: true,
+                vertexShader: document.getElementById( 'vertexShader' ).textContent,
+                fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+            } ),
+            /*pMaterial = new THREE.PointsMaterial( { size: 20, vertexColors: THREE.VertexColors, depthTest: false, sizeAttenuation: false } ),*/
             color = new THREE.Color();
 
         let positions = [];
@@ -125,7 +190,7 @@
             positions.push( Math.floor(x0));
             positions.push(Math.floor(y0));
             positions.push(Math.floor(z0));
-            sizes.push( 20 );
+            sizes.push( 10 );
 
             // add it to the geometry
         }
@@ -183,6 +248,8 @@
         this.x_start = x0start;
         this.y_start = y0start;
         this.z_start = z0start;
+
+        scene.fog = new THREE.Fog(0x000000, 25, 60);
 
         createParticleSystem();
 
