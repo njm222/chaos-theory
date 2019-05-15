@@ -101,7 +101,7 @@
     let stopSpeed = false;
     let numParticles = 5000;
 
-    let a = 10.0, b = 28.0, c = 8.0 / 3.0;
+    let s = 10.0, r = 28.0, b = 8.0 / 3.0;
     let x0start = 1, y0start = 0, z0start = 0;
 
     let scene = new THREE.Scene();
@@ -126,7 +126,7 @@
 
 
         time_elapsed += speed;
-        if(time_elapsed >= time_end) {
+        if(time_elapsed > time_end) {
             time_elapsed = time_reset;
 
         }
@@ -177,9 +177,9 @@
         // now create the individual particles
         for (let p = 0; p < num_Particles; p++) {
 
-            x1 = x0 + h * a * (y0 - x0);
-            y1 = y0 + h * (x0 * (b - z0) - y0);
-            z1 = z0 + h * (x0 * y0 - c * z0);
+            x1 = x0 + h * s * (y0 - x0);
+            y1 = y0 + h * (x0 * (r - z0) - y0);
+            z1 = z0 + h * (x0 * y0 - b * z0);
             x0 = x1;
             y0 = y1;
             z0 = z1;
@@ -242,9 +242,9 @@
         this.endTime = time_end;
         this.particleSpeed = speed;
         this.stopSpeed = stopSpeed;
-        this.a_value = a;
+        this.s_value = s;
+        this.r_value = r;
         this.b_value = b;
-        this.c_value = c;
         this.x_start = x0start;
         this.y_start = y0start;
         this.z_start = z0start;
@@ -291,9 +291,9 @@
         // now create the individual particles
         for (let p = 0; p < num_Particles; p++) {
 
-            x1 = x0 + h * a * (y0 - x0);
-            y1 = y0 + h * (x0 * (b - z0) - y0);
-            z1 = z0 + h * (x0 * y0 - c * z0);
+            x1 = x0 + h * s * (y0 - x0);
+            y1 = y0 + h * (x0 * (r - z0) - y0);
+            z1 = z0 + h * (x0 * y0 - b * z0);
             x0 = x1;
             y0 = y1;
             z0 = z1;
@@ -320,21 +320,21 @@
             stopSpeed = value;
         });
         let lorenzValues = gui.addFolder('Lorenz Values');
-        lorenzValues.add(text, 'a_value', 0, 50).onChange(value => {
-            a = value;
+        lorenzValues.add(text, 's_value', 0, 50).onChange(value => {
+            s = value;
 
             updateParticleSystem();
             positions = scene.children[0].geometry.attributes.position.array;
             oldPositions = [...positions];
         });
-        lorenzValues.add(text, 'b_value', 0, 50).onChange(value => {
-            b = value;
+        lorenzValues.add(text, 'r_value', 0, 50).onChange(value => {
+            r = value;
             updateParticleSystem();
             positions = scene.children[0].geometry.attributes.position.array;
             oldPositions = [...positions];
         });
-        lorenzValues.add(text, 'c_value', 0, 25).onChange(value => {
-            c = value;
+        lorenzValues.add(text, 'b_value', 0, 25).onChange(value => {
+            b = value;
             updateParticleSystem();
             positions = scene.children[0].geometry.attributes.position.array;
             oldPositions = [...positions];
